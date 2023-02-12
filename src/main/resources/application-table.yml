@@ -1,0 +1,51 @@
+spring:
+  shardingsphere:
+    datasource:
+      # 有几个数据就配几个，这里是名称，按照下面的格式，名称+数字的形式
+      names: db0,db1
+      # 为每个数据源单独进行配置
+      db0:
+        # 数据源实现类，这里使用默认的HikariDataSource
+        type: com.zaxxer.hikari.HikariDataSource
+        # 数据库驱动
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        url: jdbc:mysql://localhost:3306/sharding-jdbc?characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+        username: root
+        password: 123456
+      db1:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        url: jdbc:mysql://localhost:3306/sharding-jdbc1?characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+        username: root
+        password: 123456
+    rules:
+      sharding:
+        tables:
+          #这里填写表名称，程序中对这张表的所有操作，都会采用下面的路由方案
+          #比如我们上面Mybatis就是对user
+          #表进行操作，所以会走下面的路由方案
+          user:
+            # 分表  以db0为例
+            actual-data-nodes: db0.user_$->{0..1}
+            table-strategy:
+              standard:
+                sharding-column: id
+                sharding-algorithm-name: my-alg
+
+        sharding-algorithms:
+          #自定义一个新的算法，名称随意
+          my-alg:
+            #这里我们演示一下INLINE方式，我们可以自行编写表达式来决定
+            type: INLINE
+            props:
+              #比如我们还是希望进行模2计算得到数据该去的表
+              #只需要给一个最终的表名称就行了test_，后面的数字是表达式取模算出的
+              #实际上这样写和MOD模式一模一样
+              algorithm-expression: user_$->{id % 2}
+              #没错，查询也会根据分片策略来进行，但是如果我们使用的是范围查询，那么依然会进行全量查询
+              #这个我们后面紧接着会讲，这里先写上吧
+              # INLINE算法默认是不支持进行全量查询的,配置项改成true才可以 是否允许范围查询
+              allow-range-query-with-inline-sharding: true
+    props:
+      #开启日志，一会方便我们观察
+      sql-show: true
